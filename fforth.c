@@ -72,6 +72,9 @@
 #
 #   -DFAST             don't bounds check the stack (smaller, faster code)
 #
+#   -DMEMORY=xxx       allocate xxx bytes for the memory pool
+#   -DSBRK             allocate memory with sbrk() rather than a fixed pool
+#
 # No evil was harmed in the making of this file. Probably.
 
 set -e
@@ -352,6 +355,10 @@ exit 0
 	#error "Don't understand the size of your platform!"
 #endif
 
+#if !defined MEMORY
+	#define MEMORY (1024*1024)
+#endif
+
 typedef struct definition defn_t;
 typedef const struct definition cdefn_t;
 
@@ -488,14 +495,14 @@ static cell_t* raddr(int count)
 }
 
 #else
-static inline void dadjust(cell_t val, int delta) { dsp -= delta; }
-static inline void radjust(cell_t val, int delta) { rsp -= delta; }
+static inline void dadjust(int delta) { dsp -= delta; }
+static inline void radjust(int delta) { rsp -= delta; }
 static inline void dpush(cell_t val) { *--dsp = val; }
 static inline cell_t dpop(void) { return *dsp++; }
-static inline cell_t daddr(int count) { return dsp+count; }
+static inline cell_t* daddr(int count) { return dsp+count; }
 static inline void rpush(cell_t val) { *--rsp = val; }
 static inline cell_t rpop(void) { return *rsp++; }
-static inline cell_t raddr(int count) { return rsp+count; }
+static inline cell_t* raddr(int count) { return rsp+count; }
 #endif
 
 static pair_t readpair(ucell_t* ptr)
@@ -534,6 +541,7 @@ static void* ensure_workspace(size_t length)
 {
 	uint8_t* p = here + length;
 
+#if defined SBRK
 	while ((p+PAD_SIZE) > here_top)
 	{
 		uint8_t* newtop = sbrk(ALLOCATION_CHUNK_SIZE);
@@ -541,6 +549,10 @@ static void* ensure_workspace(size_t length)
 			panic("non-contiguous sbrk memory");
 		here_top = newtop + ALLOCATION_CHUNK_SIZE;
 	}
+#else
+	if ((p+PAD_SIZE) > here_top)
+		panic("out of memory");
+#endif
 
 	return here;
 }
@@ -2293,8 +2305,13 @@ static defn_t* latest = (defn_t*) &next_2d_arg_word; //@E
 
 int main(int argc, const char* argv[])
 {
+#if defined SBRK
 	here = here_top = sbrk(0);
 	claim_workspace(0);
+#else
+	here = calloc(1, MEMORY);
+	here_top = here + MEMORY;
+#endif
 
 	setjmp(onerror);
 	input_fd = 0;
