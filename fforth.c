@@ -333,6 +333,7 @@ exit 0
 #include <sys/file.h>
 #include <utime.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #if INTPTR_MAX == INT16_MAX
 	typedef int16_t cell_t;
@@ -377,6 +378,7 @@ static cell_t* dsp;
 static cell_t rstack[RSTACKSIZE];
 static cell_t* rsp;
 
+static bool batch_mode;
 static int input_fd;
 static char input_buffer[MAX_LINE_LENGTH];
 static char* in_base;
@@ -398,6 +400,8 @@ static int global_argc;
 
 typedef void code_fn(cdefn_t* w);
 static void align_cb(cdefn_t* w);
+
+static cdefn_t panic_word;
 
 #define FL_IMMEDIATE 0x80
 #define FL_SMUDGE    0x40
@@ -430,6 +434,8 @@ static void panic(const char* message)
 	strerr("panic: ");
 	strerr(message);
 	strerr("\n");
+
+	pc = (defn_t**) &panic_word.payload[0];
 	longjmp(onerror, 1);
 }
 
@@ -438,18 +444,30 @@ static void dadjust(int delta)
 {
 	dsp -= delta;
 	if (dsp <= dstack)
+	{
+		dsp = dstack;
 		panic("data stack overflow");
+	}
 	if (dsp > dstack+DSTACKSIZE)
+	{
+		dsp = dstack+DSTACKSIZE;
 		panic("data stack underflow");
+	}
 }
 
 static void radjust(int delta)
 {
 	rsp -= delta;
 	if (rsp <= rstack)
+	{
+		rsp = rstack;
 		panic("return stack overflow");
+	}
 	if (rsp > rstack+RSTACKSIZE)
+	{
+		rsp = rstack+RSTACKSIZE;
 		panic("return stack underflow");
+	}
 }
 
 static void dpush(cell_t val)
@@ -587,6 +605,7 @@ static cdefn_t _close_word ;
 static cdefn_t _create_word ;
 static cdefn_t _exit_word ;
 static cdefn_t _input_fd_word ;
+static cdefn_t _batch_mode_word ;
 static cdefn_t _mknod_word ;
 static cdefn_t _open_word ;
 static cdefn_t _read_word ;
@@ -1204,7 +1223,8 @@ COM( _close_word,        _sys_i_cb,      "_close",     &_chdir_word,     &close 
 COM( _create_word,       _create_cb,     "_create",    &_close_word,     ) //@W
 COM( _exit_word,         _exit_cb,       "_exit",      &_create_word,    ) //@W
 COM( _input_fd_word,     rvarword,       "_input_fd",  &_exit_word,      &input_fd ) //@W
-COM( _mknod_word,        _sys_sii_cb,    "_mknod",     &_input_fd_word,  ) //@W
+COM( _batch_mode_word,   rvarword,       "_batch_mode", &_input_fd_word,  &batch_mode ) //@W
+COM( _mknod_word,        _sys_sii_cb,    "_mknod",     &_batch_mode_word, ) //@W
 COM( _open_word,         _sys_si_cb,     "_open",      &_mknod_word,     &open ) //@W
 COM( _read_word,         _readwrite_cb,  "_read",      &_open_word,      &read ) //@W
 COM( _link_word,         _sys_ss_cb,     "_link",      &_read_word,      &link ) //@W
@@ -2300,8 +2320,30 @@ COM( arg_word, codeword, "ARG", &shift_2d_args_word, (void*)&argv_word, (void*)&
 //   THEN
 COM( next_2d_arg_word, codeword, "NEXT-ARG", &arg_word, (void*)&argc_word, (void*)&at_word, (void*)&branch0_word, (void*)(&next_2d_arg_word.payload[0] + 9), (void*)&zero_word, (void*)&arg_word, (void*)&shift_2d_args_word, (void*)&branch_word, (void*)(&next_2d_arg_word.payload[0] + 11), (void*)&zero_word, (void*)&zero_word, (void*)&exit_word )
 
-static cdefn_t* last = (defn_t*) &next_2d_arg_word; //@E
-static defn_t* latest = (defn_t*) &next_2d_arg_word; //@E
+static const char dstack_s[] = "Data stack: ";
+static const char rstack_s[] = "Return stack: ";
+//@C panic
+// \ Called when a panic occurs.
+//   [&lit_word] [dstack_s] [&lit_word] [sizeof(dstack_s)-1] TYPE
+//   .S
+//   [&lit_word] [rstack_s] [&lit_word] [sizeof(rstack_s)-1] TYPE
+//   HEX .RS DECIMAL
+//   _batch_mode @ IF 1 _exit THEN
+//   QUIT
+COM( panic_word, codeword, "panic", &next_2d_arg_word, (void*)(&lit_word), (void*)(dstack_s), (void*)(&lit_word), (void*)(sizeof(dstack_s)-1), (void*)&type_word, (void*)&_2e_s_word, (void*)(&lit_word), (void*)(rstack_s), (void*)(&lit_word), (void*)(sizeof(rstack_s)-1), (void*)&type_word, (void*)&hex_word, (void*)&_2e_rs_word, (void*)&decimal_word, (void*)&_batch_mode_word, (void*)&at_word, (void*)&branch0_word, (void*)(&panic_word.payload[0] + 20), (void*)&one_word, (void*)&_exit_word, (void*)&quit_word, (void*)&exit_word )
+
+static cdefn_t* last = (defn_t*) &panic_word; //@E
+static defn_t* latest = (defn_t*) &panic_word; //@E
+
+static void fatal_signal_handler_cb(int i)
+{
+	switch (i)
+	{
+		case SIGSEGV: panic("SIGSEGV");
+		case SIGBUS: panic("SIGBUS");
+		default: panic("unknown signal");
+	}
+}
 
 int main(int argc, const char* argv[])
 {
@@ -2313,17 +2355,10 @@ int main(int argc, const char* argv[])
 	here_top = here + MEMORY;
 #endif
 
-	setjmp(onerror);
-	input_fd = 0;
-
 	if (argc > 1)
 	{
+		batch_mode = true;
 		input_fd = open(argv[1], O_RDONLY);
-
-		/* Panics when running a script exit, rather than returning to the
-		 * REPL. */
-		if (setjmp(onerror))
-			exit(1);
 
 		if (input_fd == -1)
 		{
@@ -2336,14 +2371,29 @@ int main(int argc, const char* argv[])
 		argv++;
 		argc++;
 	}
+	else
+	{
+		batch_mode = false;
+		input_fd = 0;
+	}
 			
 	global_argv = argv;
 	global_argc = argc;
 
 	dsp = dstack + DSTACKSIZE;
 	rsp = rstack + RSTACKSIZE;
-
 	pc = (defn_t**) &quit_word.payload[0];
+
+	setjmp(onerror);
+
+	struct sigaction signal_action =
+	{
+		.sa_handler = fatal_signal_handler_cb,
+		.sa_flags = SA_NODEFER,
+	};
+	sigaction(SIGSEGV, &signal_action, NULL);
+	sigaction(SIGBUS, &signal_action, NULL);
+
 	for (;;)
 	{
 		const struct definition* w = (void*) *pc++;
