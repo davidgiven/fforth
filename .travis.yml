@@ -1,0 +1,18 @@
+language: c
+
+env:
+    global: HOMEBREW_NO_AUTO_UPDATE=1
+
+compiler:
+    - gcc
+    - clang
+
+os:
+    - osx
+    - linux
+
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew bundle --file=.Brewfile; fi
+
+script:
+    - make
