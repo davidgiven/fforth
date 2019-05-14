@@ -81,7 +81,7 @@ set -e
 trap 'rm /tmp/$$.words' EXIT
 
 # Get the list of words (for forward declaration).
-awk -f- $0 >/tmp/$$.words <<EOF
+gawk -f- $0 >/tmp/$$.words <<EOF
 	/\/\/@W$/ {
 		n = \$2
 		sub(/,/, " ", n)
@@ -90,7 +90,7 @@ awk -f- $0 >/tmp/$$.words <<EOF
 EOF
 
 # Now actually edit the source file.
-awk -f- $0 > $0.new <<EOF
+gawk -f- $0 > $0.new <<EOF
 	BEGIN {
 		lastword = "NULL"
 
