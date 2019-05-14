@@ -363,6 +363,23 @@ exit 0
 typedef struct definition defn_t;
 typedef const struct definition cdefn_t;
 
+typedef void code_fn(cdefn_t* w);
+static void align_cb(cdefn_t* w);
+
+struct fstring
+{
+	uint8_t len;
+	char data[];
+};
+
+struct definition
+{
+	code_fn* code;
+	struct fstring* name; // top bits of len are flags!
+	cdefn_t* next;
+	void* payload[];
+};
+
 static jmp_buf onerror;
 
 #define MAX_LINE_LENGTH 160
@@ -398,9 +415,6 @@ static uint8_t* here_top;
 static const char** global_argv;
 static int global_argc;
 
-typedef void code_fn(cdefn_t* w);
-static void align_cb(cdefn_t* w);
-
 static cdefn_t panic_word;
 
 #define FL_IMMEDIATE 0x80
@@ -409,20 +423,6 @@ static cdefn_t panic_word;
 
 #define CONST_STRING(n, v) \
 	static const char n[sizeof(v)-1] = v
-
-struct fstring
-{
-	uint8_t len;
-	char data[];
-};
-
-struct definition
-{
-	code_fn* code;
-	struct fstring* name; // top bits of len are flags!
-	cdefn_t* next;
-	void* payload[];
-};
 
 static void strerr(const char* s)
 {
