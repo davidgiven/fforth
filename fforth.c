@@ -334,6 +334,7 @@ exit 0
 #include <utime.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <limits.h>
 
 #if INTPTR_MAX == INT16_MAX
 	typedef int16_t cell_t;
@@ -687,6 +688,8 @@ static cdefn_t execute_word ;
 static cdefn_t exit_word ;
 static cdefn_t fill_word ;
 static cdefn_t find_word ;
+static cdefn_t find_closest_word ;
+static cdefn_t name ;
 static cdefn_t fm_mod_word ;
 static cdefn_t ge_word ;
 static cdefn_t gt_word ;
@@ -1004,6 +1007,41 @@ static void find_cb(cdefn_t* w)
 	dpush(0);
 }
 
+/* Given an instruction pointer, finds the closest matching word and offset.
+ * ( ip -- cdefn offset )
+ */
+static void find_closest_word_cb(cdefn_t* w)
+{
+	cell_t ip = dpop();
+	cdefn_t* current = latest;
+	cdefn_t* matching = NULL;
+	ucell_t distance = UINT_MAX;
+
+	while (current)
+	{
+		ucell_t d = ip - (cell_t)current;
+		if (d < distance)
+		{
+			distance = d;
+			matching = current;
+		}
+		current = current->next;
+	}
+
+	dpush((cell_t) matching);
+	dpush(distance);
+}
+
+/* >NAME: given an xt, returns its name.
+ * ( xt -- address length )
+ */
+static void name_cb(cdefn_t* w)
+{
+	cdefn_t* current = (cdefn_t*) dpop();
+	dpush((cell_t) current->name->data);
+	dpush(current->name->len & FL__MASK);
+}
+
 static unsigned get_digit(char p)
 {
 	if (p >= 'a')
@@ -1305,7 +1343,9 @@ COM( execute_word,       execute_cb,     "EXECUTE",    &equals_word,     ) //@W
 COM( exit_word,          exit_cb,        "EXIT",       &execute_word,    ) //@W
 COM( fill_word,          fill_cb,        "FILL",       &exit_word,       ) //@W
 COM( find_word,          find_cb,        "FIND",       &fill_word,       ) //@W
-COM( fm_mod_word,        fm_mod_cb,      "FM/MOD",     &find_word,       ) //@W
+COM( find_closest_word,  find_closest_word_cb, "FIND-CLOSEST-WORD", &find_word,       ) //@W
+COM( name,               name_cb,        ">NAME",      &find_closest_word, ) //@W
+COM( fm_mod_word,        fm_mod_cb,      "FM/MOD",     &name,            ) //@W
 COM( ge_word,            ge_cb,          ">=",         &fm_mod_word,     ) //@W
 COM( gt_word,            gt_cb,          ">",          &ge_word,         ) //@W
 COM( h_pad,              rvarword,       "#PAD",       &gt_word,         (void*)PAD_SIZE ) //@W
@@ -2213,9 +2253,28 @@ COM( showstack_word, codeword, "", &u_2e__word, (void*)&t_dup_word, (void*)&not_
 //   SP@ SP0 showstack
 COM( _2e_s_word, codeword, ".S", &showstack_word, (void*)&sp_at_word, (void*)&sp0_word, (void*)&showstack_word, (void*)&exit_word )
 
+//@C .NAME
+// \ Prints the name of a word.
+// \ ( xt -- )
+//   >NAME TYPE
+COM( _2e_name_word, codeword, ".NAME", &_2e_s_word, (void*)&name, (void*)&type_word, (void*)&exit_word )
+//
 //@C .RS
-//   RSP@ CELL+ RSP0 showstack
-COM( _2e_rs_word, codeword, ".RS", &_2e_s_word, (void*)&rsp_at_word, (void*)&cell_2b__word, (void*)&rsp0_word, (void*)&showstack_word, (void*)&exit_word )
+// \ Dumps the contents of the return stack, with name resolution.
+// \ ( -- )
+//   RSP@ RSP0
+//   HEX
+//   BEGIN
+//     2DUP <>
+//   WHILE
+//     CELL -
+//     DUP @ DUP
+//     u.nospace 61 EMIT
+//     FIND-CLOSEST-WORD SWAP .NAME 43 EMIT u.nospace SPACE
+//   REPEAT
+//   2DROP
+//   CR
+COM( _2e_rs_word, codeword, ".RS", &_2e_name_word, (void*)&rsp_at_word, (void*)&rsp0_word, (void*)&hex_word, (void*)&t_dup_word, (void*)&not_equals_word, (void*)&branch0_word, (void*)(&_2e_rs_word.payload[0] + 26), (void*)&cell_word, (void*)&sub_word, (void*)&dup_word, (void*)&at_word, (void*)&dup_word, (void*)&u_2e_nospace_word, (void*)&lit_word, (void*)61, (void*)&emit_word, (void*)&find_closest_word, (void*)&swap_word, (void*)&_2e_name_word, (void*)&lit_word, (void*)43, (void*)&emit_word, (void*)&u_2e_nospace_word, (void*)&space_word, (void*)&branch_word, (void*)(&_2e_rs_word.payload[0] + 3), (void*)&t_drop_word, (void*)&cr_word, (void*)&exit_word )
 
 //@C CHAR
 //   BL WORD
@@ -2327,10 +2386,10 @@ static const char rstack_s[] = "Return stack: ";
 //   [&lit_word] [dstack_s] [&lit_word] [sizeof(dstack_s)-1] TYPE
 //   .S
 //   [&lit_word] [rstack_s] [&lit_word] [sizeof(rstack_s)-1] TYPE
-//   HEX .RS DECIMAL
+//   .RS
 //   _batch_mode @ IF 1 _exit THEN
 //   QUIT
-COM( panic_word, codeword, "panic", &next_2d_arg_word, (void*)(&lit_word), (void*)(dstack_s), (void*)(&lit_word), (void*)(sizeof(dstack_s)-1), (void*)&type_word, (void*)&_2e_s_word, (void*)(&lit_word), (void*)(rstack_s), (void*)(&lit_word), (void*)(sizeof(rstack_s)-1), (void*)&type_word, (void*)&hex_word, (void*)&_2e_rs_word, (void*)&decimal_word, (void*)&_batch_mode_word, (void*)&at_word, (void*)&branch0_word, (void*)(&panic_word.payload[0] + 20), (void*)&one_word, (void*)&_exit_word, (void*)&quit_word, (void*)&exit_word )
+COM( panic_word, codeword, "panic", &next_2d_arg_word, (void*)(&lit_word), (void*)(dstack_s), (void*)(&lit_word), (void*)(sizeof(dstack_s)-1), (void*)&type_word, (void*)&_2e_s_word, (void*)(&lit_word), (void*)(rstack_s), (void*)(&lit_word), (void*)(sizeof(rstack_s)-1), (void*)&type_word, (void*)&_2e_rs_word, (void*)&_batch_mode_word, (void*)&at_word, (void*)&branch0_word, (void*)(&panic_word.payload[0] + 18), (void*)&one_word, (void*)&_exit_word, (void*)&quit_word, (void*)&exit_word )
 
 static cdefn_t* last = (defn_t*) &panic_word; //@E
 static defn_t* latest = (defn_t*) &panic_word; //@E
