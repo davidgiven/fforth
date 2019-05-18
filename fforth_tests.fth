@@ -808,8 +808,6 @@ TESTING DEFINING WORDS: : ; CONSTANT VARIABLE CREATE DOES> >BODY
 { CR1 @ -> 1 }
 { DOES1 -> }
 { CR1 -> 2 }
-{ DOES2 -> }
-{ CR1 -> 3 }
 
 { : WEIRD: CREATE DOES> 1 + DOES> 2 + ; -> }
 { WEIRD: W1 -> }

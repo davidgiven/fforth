@@ -44,9 +44,8 @@
 # DOES>
 #     ANS Forth decrees that you can call DOES> multiple times on a word, where
 #     each time it changes the code part of the word. fforth doesn't support
-#     that. If you call DOES> twice here, you end up *appending* the behaviour
-#     after the DOES> --- so the old code will be called, then the new code
-#     will be called.
+#     that --- you can only call DOES> once. (Because I haven't figured out how
+#     to make this work with fforth's non-traditional word architecture.)
 #
 # READ-FILE filename
 #     Opens and then executes Forth code supplied in the named file.
@@ -437,6 +436,12 @@ static void panic(const char* message)
 	strerr(message);
 	strerr("\n");
 
+	if (input_fd != 0)
+	{
+		close(input_fd);
+		input_fd = 0;
+	}
+
 	pc = (defn_t**) &panic_word.payload[0];
 	longjmp(onerror, 1);
 }
@@ -690,7 +695,8 @@ static cdefn_t exit_word ;
 static cdefn_t fill_word ;
 static cdefn_t find_word ;
 static cdefn_t find_closest_word ;
-static cdefn_t name ;
+static cdefn_t name_word ;
+static cdefn_t body_word ;
 static cdefn_t fm_mod_word ;
 static cdefn_t ge_word ;
 static cdefn_t gt_word ;
@@ -1038,9 +1044,18 @@ static void find_closest_word_cb(cdefn_t* w)
  */
 static void name_cb(cdefn_t* w)
 {
-	cdefn_t* current = (cdefn_t*) dpop();
-	dpush((cell_t) current->name->data);
-	dpush(current->name->len & FL__MASK);
+	cdefn_t* xt = (cdefn_t*) dpop();
+	dpush((cell_t) xt->name->data);
+	dpush(xt->name->len & FL__MASK);
+}
+
+/* >BODY: given an xt, returns a pointer to the word body.
+ * ( xt -- address )
+ */
+static void body_cb(cdefn_t* w)
+{
+	cdefn_t* xt = (cdefn_t*) dpop();
+	dpush((cell_t) &xt->payload);
 }
 
 static unsigned get_digit(char p)
@@ -1345,8 +1360,9 @@ COM( exit_word,          exit_cb,        "EXIT",       &execute_word,    ) //@W
 COM( fill_word,          fill_cb,        "FILL",       &exit_word,       ) //@W
 COM( find_word,          find_cb,        "FIND",       &fill_word,       ) //@W
 COM( find_closest_word,  find_closest_word_cb, "FIND-CLOSEST-WORD", &find_word,       ) //@W
-COM( name,               name_cb,        ">NAME",      &find_closest_word, ) //@W
-COM( fm_mod_word,        fm_mod_cb,      "FM/MOD",     &name,            ) //@W
+COM( name_word,          name_cb,        ">NAME",      &find_closest_word, ) //@W
+COM( body_word,          body_cb,        ">BODY",      &name_word,       ) //@W
+COM( fm_mod_word,        fm_mod_cb,      "FM/MOD",     &body_word,       ) //@W
 COM( ge_word,            ge_cb,          ">=",         &fm_mod_word,     ) //@W
 COM( gt_word,            gt_cb,          ">",          &ge_word,         ) //@W
 COM( h_pad,              rvarword,       "#PAD",       &gt_word,         (void*)PAD_SIZE ) //@W
@@ -1814,7 +1830,7 @@ COM( _3a__word, codeword, ":", &read_2d_file_word, (void*)&create_word, (void*)&
 //   \ Fetch it.
 //   DUP @                                 \ addr name --
 //
-//   \ Set the field to null (we don't want the old word being looked up).
+//   \ Set the name field to null (we don't want the old word being looked up).
 //   0                                     \ addr name 0 --
 //   ROT                                   \ name 0 addr --
 //   !                                     \ name --
@@ -1848,16 +1864,12 @@ COM( does_3e__word, codeword, "DOES>", &_3a__word, (void*)&latest_word, (void*)&
 //  [
 IMM( _3b__word, codeword, ";", &does_3e__word, (void*)(&lit_word), (void*)(&exit_word), (void*)&_2c__word, (void*)&smudge_word, (void*)&open_sq_word, (void*)&exit_word )
 
-//@C >BODY
-//  3 CELLS +
-COM( _3e_body_word, codeword, ">BODY", &_3b__word, (void*)&lit_word, (void*)3, (void*)&cells_word, (void*)&add_word, (void*)&exit_word )
-
 //@C CONSTANT
 // \ ( value -- )
 //  CREATE
 //  [&lit_word] [rvarword] LATEST @ !
 //  ,
-COM( constant_word, codeword, "CONSTANT", &_3e_body_word, (void*)&create_word, (void*)(&lit_word), (void*)(rvarword), (void*)&latest_word, (void*)&at_word, (void*)&pling_word, (void*)&_2c__word, (void*)&exit_word )
+COM( constant_word, codeword, "CONSTANT", &_3b__word, (void*)&create_word, (void*)(&lit_word), (void*)(rvarword), (void*)&latest_word, (void*)&at_word, (void*)&pling_word, (void*)&_2c__word, (void*)&exit_word )
 
 //@C VARIABLE
 //  CREATE 0 ,
@@ -2258,7 +2270,7 @@ COM( _2e_s_word, codeword, ".S", &showstack_word, (void*)&sp_at_word, (void*)&sp
 // \ Prints the name of a word.
 // \ ( xt -- )
 //   >NAME TYPE
-COM( _2e_name_word, codeword, ".NAME", &_2e_s_word, (void*)&name, (void*)&type_word, (void*)&exit_word )
+COM( _2e_name_word, codeword, ".NAME", &_2e_s_word, (void*)&name_word, (void*)&type_word, (void*)&exit_word )
 //
 //@C .RS
 // \ Dumps the contents of the return stack, with name resolution.
@@ -2397,6 +2409,11 @@ static defn_t* latest = (defn_t*) &panic_word; //@E
 
 static void fatal_signal_handler_cb(int i)
 {
+	/* Push the current PC onto the return stack so that the stack trace
+	 * feature reports it correctly. */
+
+	rpush((cell_t) pc);
+
 	switch (i)
 	{
 		case SIGSEGV: panic("SIGSEGV");
@@ -2461,8 +2478,19 @@ int main(int argc, const char* argv[])
 		 * word for every bytecode. */
 		#if 0
 			cell_t* p;
-			printf("%p ", pc-1);
-			printf("S(");
+			dpush((cell_t)(pc-1));
+			find_closest_word_cb(NULL);
+			{
+				cell_t offset = dpop();
+				cdefn_t* xt = (cdefn_t*) dpop();
+				if (xt->name)
+					fwrite(&xt->name->data[0], 1, xt->name->len & FL__MASK, stdout);
+				else
+					printf("%p", xt);
+				printf("+%p", offset);
+			}
+
+			printf(" S(");
 			for (p = dstack+DSTACKSIZE-1; p >= dsp; p--)
 				printf("%lx ", *p);
 			printf(") ");
@@ -2480,6 +2508,7 @@ int main(int argc, const char* argv[])
 				printf("(null)");
 			putchar(']');
 			putchar('\n');
+			fflush(stdout);
 		#endif
 		w->code(w);
 	}

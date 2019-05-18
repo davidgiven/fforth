@@ -17,19 +17,21 @@ Hayes' ANS conformance test. Or at least that of the version I found.
 For reference, the version of the standard I've been referring to is:
 http://lars.nocrew.org/dpans/dpans6.htm
 
-All standard words USE THE CAPITAL LETTER SPELLING.
+All standard words USE THE ALL CAPITAL LETTERS version of the spelling (so you
+need to type `BYE` to quit).
 
 Peculiarities include:
 
-DOES>
+  - `DOES>`
+
     ANS Forth decrees that you can call DOES> multiple times on a word, where
     each time it changes the code part of the word. fforth doesn't support
-    that. If you call DOES> twice here, you end up *appending* the behaviour
-    after the DOES> --- so the old code will be called, then the new code
-    will be called.
+    that --- you can only call DOES> once. (Because I haven't figured out how
+    to make this work with fforth's non-traditional word architecture.)
 
-READ-FILE filename
-    Opens and then executes Forth code supplied in the named file.
+  - `READ-FILE` filename
+
+     Opens and then executes Forth code supplied in the named file.
 
 There are also a few useful features for debugging, such as slightly useful
 stack traces when errors occur and optional (at compile time) stack bounds
@@ -83,6 +85,7 @@ No evil was harmed in the making of this file. Probably.
 The FluxEngine was designed, built and written by me, David Given. You may
 contact me at dg@cowlark.com, or visit my website at http://www.cowlark.com.
 There may or may not be anything interesting there.
+
 
 ## License?
 
