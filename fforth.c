@@ -74,6 +74,8 @@
 #   -DMEMORY=xxx       allocate xxx bytes for the memory pool
 #   -DSBRK             allocate memory with sbrk() rather than a fixed pool
 #
+#   -DTRACING          enable copious and useful tracing of all execution
+#
 # No evil was harmed in the making of this file. Probably.
 
 set -e
@@ -2476,7 +2478,7 @@ int main(int argc, const char* argv[])
 		const struct definition* w = (void*) *pc++;
 		/* Uncomment this to trace the current program counter, stack and
 		 * word for every bytecode. */
-		#if 0
+		#if defined TRACING
 			cell_t* p;
 			dpush((cell_t)(pc-1));
 			find_closest_word_cb(NULL);

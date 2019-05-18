@@ -1,6 +1,6 @@
 # fforth
 
-A small, portable Forth written in Posix C.
+A small, portable, and decently fast Forth written in Posix C.
 
 
 ## What?
@@ -76,6 +76,9 @@ In addition, there are some C compilation options:
   - `-DSBRK`: allocate memory with sbrk() rather than a fixed pool. This will
 	be extended if it fills up. If it cannot be extended due to non-contiguous
 	sbrk() memory, the interpeter will panic.
+
+  - `-DTRACING`: trace almost all details of execution of each instruction;
+    extremely verbose but useful for figuring out why things crash.
 
 No evil was harmed in the making of this file. Probably.
 
