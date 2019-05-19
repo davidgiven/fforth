@@ -1,6 +1,3 @@
-: prime? ( n -- ? ) HERE + C@ 0= ;
-: composite! ( n -- ) HERE + 1 SWAP C! ;
-
 CREATE start-time 2 CELLS ALLOT
 
 : start-benchmark
@@ -15,6 +12,10 @@ CREATE start-time 2 CELLS ALLOT
 ;
 
 ( Mostly stolen from Rosetta Code: https://rosettacode.org/wiki/Sieve_of_Eratosthenes#Forth )
+
+: prime? ( n -- ? ) HERE + C@ 0= ;
+: composite! ( n -- ) HERE + 1 SWAP C! ;
+
 : sieve ( n -- )
   start-benchmark
   HERE OVER ERASE
