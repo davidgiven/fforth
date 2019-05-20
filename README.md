@@ -92,11 +92,11 @@ There may or may not be anything interesting there.
 
 ## License?
 
-fforth is (C) 2015 David Given. It's licensed under the terms of the 2-clause
+fforth is © 2015-2017 David Given. It's licensed under the terms of the 2-clause
 BSD license (tl;dr: do what you like but don't claim you own it). See the
 LICENSE file in the source distribution for details.
 
 As an exception, the `fforth_tests.fth` file was written by John Hayes and is
-(C) 1995 Johns Hopkins University / Applied Physics Laboratory. It's freely
+© 1995 Johns Hopkins University / Applied Physics Laboratory. It's freely
 distributable --- see the comment at the top of the file for information.
 
