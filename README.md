@@ -17,8 +17,8 @@ Hayes' ANS conformance test. Or at least that of the version I found.
 For reference, the version of the standard I've been referring to is:
 http://lars.nocrew.org/dpans/dpans6.htm
 
-All standard words USE THE ALL CAPITAL LETTERS version of the spelling (so you
-need to type `BYE` to quit).
+Word matching is CaSE INsenSITive, which I normally loathe, but seems to be
+standard in Forth dialects.
 
 Peculiarities include:
 

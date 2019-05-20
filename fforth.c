@@ -338,6 +338,7 @@ exit 0
 #include <fcntl.h>
 #include <signal.h>
 #include <limits.h>
+#include <ctype.h>
 
 #if INTPTR_MAX == INT16_MAX
 	typedef int16_t cell_t;
@@ -597,11 +598,18 @@ static void* claim_workspace(size_t length)
  * dictionary as flags). */
 static int fstreq(const struct fstring* f1, const struct fstring* f2)
 {
+  const char* p1 = f1->data;
+  const char* p2 = f2->data;
 	int len1 = f1->len & FL__MASK;
 	int len2 = f2->len & FL__MASK;
 	if (len1 != len2)
 		return 0;
-	return (memcmp(f1->data, f2->data, len1) == 0);
+  while (len1--)
+  {
+    if (tolower(*p1++) != tolower(*p2++))
+      return 0;
+  }
+  return 1;
 }
 
 /* Forward declarations of words go here --- do not edit.*/
