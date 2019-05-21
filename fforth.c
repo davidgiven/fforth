@@ -882,6 +882,12 @@ static void _sys_iiv_cb(cdefn_t* w)
 	dpush(ioctl(i1, i2, s));
 }
 
+#if defined BSD
+static int bespoke_umount(const char* target) { return unmount(target, 0); }
+#else
+#define bespoke_umount umount
+#endif
+
 /* ======================================================================= */
 /*                                  WORDS                                  */
 /* ======================================================================= */
@@ -1351,7 +1357,7 @@ COM( _stdout_word,       rvarword,       "_stdout",    &_stdin_word,     (void*)
 COM( _sync_word,         _sys_i_cb,      "_sync",      &_stdout_word,    &sync ) //@W
 COM( _times_word,        _sys_s_cb,      "_times",     &_sync_word,      &times ) //@W
 COM( _umask_word,        _sys_i_cb,      "_umask",     &_times_word,     &umask ) //@W
-COM( _umount_word,       _sys_s_cb,      "_umount",    &_umask_word,     &umount ) //@W
+COM( _umount_word,       _sys_s_cb,      "_umount",    &_umask_word,     &bespoke_umount ) //@W
 COM( _uname_word,        _sys_s_cb,      "_uname",     &_umount_word,    &uname ) //@W
 COM( _utime_word,        _sys_ss_cb,     "_utime",     &_uname_word,     &utime ) //@W
 COM( _wait_word,         _sys_s_cb,      "_wait",      &_utime_word,     &wait ) //@W
