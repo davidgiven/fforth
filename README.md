@@ -1,9 +1,8 @@
-# fforth
+fforth
+======
 
-A small, portable, and decently fast Forth written in Posix C.
-
-
-## What?
+What?
+-----
 
 fforth is a small, reasonably fast indirect-threaded Forth written in portable
 C. It should Just Compile on most Unixy platforms. It's intended as a scripting
@@ -14,8 +13,8 @@ system. It's got reasonably complete basic bindings to most Unix ssystem calls
 It supports most of the core ANS Forth words, and passes (most of) John 
 Hayes' ANS conformance test. Or at least that of the version I found.
 
-For reference, the version of the standard I've been referring to is:
-http://lars.nocrew.org/dpans/dpans6.htm
+For reference, [here is the version of the standard I've been referring to](
+http://lars.nocrew.org/dpans/dpans6.htm).
 
 Word matching is CaSE INsenSITive, which I normally loathe, but seems to be
 standard in Forth dialects.
@@ -38,7 +37,14 @@ stack traces when errors occur and optional (at compile time) stack bounds
 checking. There are probably also lots of exciting bugs.
 
 
-## How?
+Where?
+------
+
+It's [open source on GitHub!](https://github.com/davidgiven/fforth)
+
+
+How?
+----
 
 If you want to use it:
 
@@ -83,16 +89,18 @@ In addition, there are some C compilation options:
 No evil was harmed in the making of this file. Probably.
 
 
-## Who?
+Who?
+----
 
 The FluxEngine was designed, built and written by me, David Given. You may
 contact me at dg@cowlark.com, or visit my website at http://www.cowlark.com.
 There may or may not be anything interesting there.
 
 
-## License?
+License?
+--------
 
-fforth is © 2015-2017 David Given. It's licensed under the terms of the 2-clause
+fforth is © 2015-2019 David Given. It's licensed under the terms of the 2-clause
 BSD license (tl;dr: do what you like but don't claim you own it). See the
 LICENSE file in the source distribution for details.
 
