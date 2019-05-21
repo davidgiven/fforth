@@ -1,4 +1,4 @@
 fforth: fforth.c
 	sh ./fforth.c
-	gcc -O3 fforth.c -o fforth
+	gcc -g -O3 -Wall fforth.c -o fforth
 

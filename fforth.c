@@ -412,7 +412,6 @@ static cell_t state = false;
 
 static defn_t** pc;
 static defn_t* latest; /* Most recent word on dictionary */
-static cdefn_t* last;   /* Last of the built-in words */
 
 static uint8_t* here;
 static uint8_t* here_top;
@@ -898,8 +897,6 @@ static void codeword(cdefn_t* w)
 
 static void dataword(cdefn_t* w) { dpush((cell_t) &w->payload[0]); }
 static void rvarword(cdefn_t* w) { dpush((cell_t) w->payload[0]); }
-static void r2varword(cdefn_t* w) { dpush((cell_t) w->payload[0]); dpush((cell_t) w->payload[1]); }
-static void wvarword(defn_t* w) { w->payload[0] = (void*) dpop(); }
 static void rivarword(cdefn_t* w) { dpush(*(cell_t*) w->payload[0]); }
 static void wivarword(cdefn_t* w) { *(cell_t*)(w->payload[0]) = dpop(); }
 
@@ -1272,13 +1269,10 @@ static void peekcon_cb(cdefn_t* w)    { dpush(*daddr((cell_t) *w->payload)); }
 static void peekcon2_cb(cdefn_t* w)   { peekcon_cb(w); peekcon_cb(w); }
 static void pick_cb(cdefn_t* w)       { dpush(*daddr(dpop())); }
 static void pling_cb(cdefn_t* w)      { cell_t* p = (cell_t*)dpop(); *p = dpop(); }
-static void pokecon_cb(cdefn_t* w)    { cell_t v = dpop(); *daddr((cell_t) *w->payload) = v; }
 static void q_dup_cb(cdefn_t* w)      { cell_t a = *daddr(0); if (a) dpush(a); }
 static void r_arrow_cb(cdefn_t* w)    { dpush(rpop()); }
 static void radjust_cb(cdefn_t* w)    { radjust((cell_t) *w->payload); }
-static void rpeekcon_cb(cdefn_t* w)   { dpush(*raddr((cell_t) *w->payload)); }
 static void rpick_cb(cdefn_t* w)      { dpush(*raddr(dpop())); }
-static void rpokecon_cb(cdefn_t* w)   { cell_t v = dpop(); *raddr((cell_t) *w->payload) = v; }
 static void rshift_cb(cdefn_t* w)     { cell_t u = dpop(); ucell_t a = dpop(); dpush(a >> u); }
 static void rsshift_cb(cdefn_t* w)    { dpush(dpop() >> 1); }
 static void source_cb(cdefn_t* w)     { dpush((cell_t) in_base); dpush(in_len); }
@@ -1704,12 +1698,12 @@ COM( e_enoent_word, codeword, "", &literal_word, (void*)(&lit_word), (void*)(unr
 CONST_STRING(end_of_line_msg, "panic: unexpected end of line");
 //@C E_eol HIDDEN
 // \ --
-//   [&lit_word] [unrecognised_word_msg]
-//   [&lit_word] [sizeof(unrecognised_word_msg)]
+//   [&lit_word] [end_of_line_msg]
+//   [&lit_word] [sizeof(end_of_line_msg)]
 //   TYPE
 //   CR
 //   ABORT
-COM( e_eol_word, codeword, "", &e_enoent_word, (void*)(&lit_word), (void*)(unrecognised_word_msg), (void*)(&lit_word), (void*)(sizeof(unrecognised_word_msg)), (void*)&type_word, (void*)&cr_word, (void*)&abort_word, (void*)&exit_word )
+COM( e_eol_word, codeword, "", &e_enoent_word, (void*)(&lit_word), (void*)(end_of_line_msg), (void*)(&lit_word), (void*)(sizeof(end_of_line_msg)), (void*)&type_word, (void*)&cr_word, (void*)&abort_word, (void*)&exit_word )
 
 //@C INTERPRET_NUM HIDDEN
 // \ Evaluates a number, or perish in the attempt.
@@ -2444,7 +2438,6 @@ static const char rstack_s[] = "Return stack: ";
 //   QUIT
 COM( panic_word, codeword, "panic", &next_2d_arg_word, (void*)(&lit_word), (void*)(dstack_s), (void*)(&lit_word), (void*)(sizeof(dstack_s)-1), (void*)&type_word, (void*)&_2e_s_word, (void*)(&lit_word), (void*)(rstack_s), (void*)(&lit_word), (void*)(sizeof(rstack_s)-1), (void*)&type_word, (void*)&_2e_rs_word, (void*)&_batch_mode_word, (void*)&at_word, (void*)&branch0_word, (void*)(&panic_word.payload[0] + 18), (void*)&one_word, (void*)&_exit_word, (void*)&quit_word, (void*)&exit_word )
 
-static cdefn_t* last = (defn_t*) &panic_word; //@E
 static defn_t* latest = (defn_t*) &panic_word; //@E
 
 static void fatal_signal_handler_cb(int i)
