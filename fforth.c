@@ -400,8 +400,8 @@ static cell_t* dsp;
 static cell_t rstack[RSTACKSIZE];
 static cell_t* rsp;
 
-static bool batch_mode;
-static int input_fd;
+static cell_t batch_mode;
+static cell_t input_fd;
 static char input_buffer[MAX_LINE_LENGTH];
 static char* in_base;
 static cell_t in_len;
@@ -1231,7 +1231,7 @@ static void utime_cb(cdefn_t* w)
 
 static void E_fnf_cb(cdefn_t* w)      { panic("file not found"); }
 static void _exit_cb(cdefn_t* w)      { exit(dpop()); }
-static void abort_cb(cdefn_t* w)      { longjmp(onerror, 1); }
+static void abort_cb(cdefn_t* w)      { panic("ABORT called"); }
 static void add_cb(cdefn_t* w)        { dpush(dpop() + dpop()); }
 static void dadjust_cb(cdefn_t* w)    { dadjust((cell_t) *w->payload); }
 static void align_cb(cdefn_t* w)      { claim_workspace((CELL - (cell_t)here) & (CELL-1)); }
@@ -1680,7 +1680,7 @@ COM( snumber_word, codeword, "", &numberthenneg_word, (void*)&swap_word, (void*)
 //   [&lit_word] [&lit_word] , ,
 IMM( literal_word, codeword, "LITERAL", &snumber_word, (void*)(&lit_word), (void*)(&lit_word), (void*)&_2c__word, (void*)&_2c__word, (void*)&exit_word )
 
-CONST_STRING(unrecognised_word_msg, "panic: unrecognised word: ");
+CONST_STRING(unrecognised_word_msg, "error: unrecognised word: ");
 //@C E_enoent HIDDEN
 // \ c-addr --
 //   [&lit_word] [unrecognised_word_msg]
@@ -1695,7 +1695,7 @@ CONST_STRING(unrecognised_word_msg, "panic: unrecognised word: ");
 //   ABORT
 COM( e_enoent_word, codeword, "", &literal_word, (void*)(&lit_word), (void*)(unrecognised_word_msg), (void*)(&lit_word), (void*)(sizeof(unrecognised_word_msg)), (void*)&type_word, (void*)&drop_word, (void*)&drop_word, (void*)&count_word, (void*)&type_word, (void*)&cr_word, (void*)&abort_word, (void*)&exit_word )
 
-CONST_STRING(end_of_line_msg, "panic: unexpected end of line");
+CONST_STRING(end_of_line_msg, "error: unexpected end of line");
 //@C E_eol HIDDEN
 // \ --
 //   [&lit_word] [end_of_line_msg]
