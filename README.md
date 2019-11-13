@@ -92,9 +92,9 @@ No evil was harmed in the making of this file. Probably.
 Who?
 ----
 
-The FluxEngine was designed, built and written by me, David Given. You may
-contact me at dg@cowlark.com, or visit my website at http://www.cowlark.com.
-There may or may not be anything interesting there.
+fforth was written by me, David Given. You may contact me at dg@cowlark.com, or
+visit my website at http://www.cowlark.com.  There may or may not be anything
+interesting there.
 
 
 License?
